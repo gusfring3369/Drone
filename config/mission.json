@@ -1,0 +1,46 @@
+{
+  "_comment": "All positions are metres in the local NED frame: north = forward from home, east = right. Home (0,0) is where the drone spawns.",
+  "world_name": "medical_delivery",
+
+  "map_bounds": { "north_min": -20, "north_max": 150, "east_min": -30, "east_max": 130 },
+  "grid_resolution": 1.0,
+  "safety_margin": 4.0,
+
+  "hospital": { "name": "City Hospital (home)", "north": 0, "east": 0 },
+  "village":  { "name": "Remote Village Clinic", "north": 130, "east": 100 },
+
+  "cruise_alt": 15.0,
+  "cruise_speed": 6.0,
+  "waypoint_tolerance": 1.5,
+
+  "obstacles": [
+    { "name": "apartment_block_a", "north": 35,  "east": 25,  "size_n": 14, "size_e": 34, "height": 30 },
+    { "name": "water_tower",       "north": 15,  "east": 55,  "size_n": 10, "size_e": 10, "height": 35 },
+    { "name": "office_block_b",    "north": 80,  "east": 62,  "size_n": 24, "size_e": 16, "height": 32 },
+    { "name": "warehouse_c",       "north": 95,  "east": 20,  "size_n": 18, "size_e": 26, "height": 25 },
+    { "name": "telecom_tower",     "north": 60,  "east": 100, "size_n": 10, "size_e": 10, "height": 40 },
+    { "name": "factory_d",         "north": 115, "east": 70,  "size_n": 12, "size_e": 20, "height": 28 }
+  ],
+
+  "blockage": {
+    "_comment": "Temporary blockage (e.g. crane / fallen tree / temporary no-fly zone) placed on the planned route.",
+    "route_fraction": 0.5,
+    "size": 12,
+    "height": 30,
+    "sensor_range": 25.0,
+    "wait_timeout": 20.0,
+    "scenarios": {
+      "short": { "clear_after": 8.0,  "description": "Blockage clears while the drone is waiting -> drone resumes original route" },
+      "long":  { "clear_after": 60.0, "description": "Blockage outlasts the wait timeout -> drone re-plans around it" },
+      "none":  { "clear_after": 0.0,  "description": "No blockage" }
+    }
+  },
+
+  "safety": {
+    "fence_radius": 220,
+    "fence_alt_max": 50,
+    "rtl_alt": 45
+  },
+
+  "delivery": { "ground_wait": 5.0 }
+}
