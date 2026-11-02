@@ -86,9 +86,11 @@ Drop `--render-engine ogre` on a native install with a good GPU. If the window i
 
 **Terminal 2: ArduPilot SITL** connected to Gazebo. Always start it from your home folder.
 ```bash
-cd ~ && sim_vehicle.py -v ArduCopter -f gazebo-iris --model JSON --console --map --out=udp:127.0.0.1:14560
+cd ~ && sim_vehicle.py -v ArduCopter -f gazebo-iris --model JSON --console --map --add-param-file=$HOME/ardupilot/Tools/autotest/default_params/copter.parm --add-param-file=$HOME/ardupilot/Tools/autotest/default_params/gazebo-iris.parm --out=udp:127.0.0.1:14560
 ```
 Wait until the console shows `EKF3 IMU0 is using GPS`. The extra `--out` sends telemetry to port 14560 for the mission script; QGroundControl keeps using 14550.
+
+The two `--add-param-file` options are needed on current ArduPilot `master`, which looks up its built-in defaults by the `--model` name (`JSON`) and so loads none. Without them, arming fails with `PreArm: Motors: Check frame class and type`. If you ever see that error, add `-w` once to wipe the saved parameters.
 
 **Terminal 3 (optional): QGroundControl.** It connects automatically.
 ```bash
@@ -147,6 +149,7 @@ python3 scripts/generate_world.py
 ## 5. Troubleshooting
 | Problem | Fix |
 |---|---|
+| `PreArm: Motors: Check frame class and type` | Start SITL with the two `--add-param-file` options shown in Terminal 2, plus `-w` once. |
 | `No heartbeat from the autopilot` | Check that SITL was started with `--out=udp:127.0.0.1:14560`, and that it's still running. |
 | `Unable to find or download file` / `iris_with_ardupilot` not found | `GZ_SIM_RESOURCE_PATH` must include `~/ardupilot_gazebo/models`. See install guide Step 5, and open a new terminal after editing `.bashrc`. |
 | Gazebo window black or flickering (VM) | Add `--render-engine ogre`, or run headless with `-s`. |
