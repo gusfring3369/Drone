@@ -200,16 +200,26 @@ class GazeboWorld:
         if enabled and not self.enabled:
             log("WARNING: 'gz' command not found - blockage will only be virtual (live map).")
 
-    def _service(self, service: str, reqtype: str, req: str) -> bool:
+    def _call(self, service: str, reqtype: str, req: str) -> bool:
         if not self.enabled:
             return True
-        cmd = ["gz", "service", "-s", f"/world/{self.world}/{service}", "--reqtype", reqtype,
+        cmd = ["gz", "service", "-s", service, "--reqtype", reqtype,
                "--reptype", "gz.msgs.Boolean", "--timeout", "3000", "--req", req]
         try:
             out = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
             return "true" in out.stdout
         except (OSError, subprocess.TimeoutExpired):
             return False
+
+    def _service(self, service: str, reqtype: str, req: str) -> bool:
+        return self._call(f"/world/{self.world}/{service}", reqtype, req)
+
+    def follow(self, model: str, offset: tuple[float, float, float]) -> bool:
+        """Make the Gazebo GUI camera follow `model` at `offset` (x back/forward, y side, z up)."""
+        ok = self._call("/gui/follow", "gz.msgs.StringMsg", f'data: "{model}"')
+        self._call("/gui/follow/offset", "gz.msgs.Vector3d",
+                   f"x: {offset[0]}, y: {offset[1]}, z: {offset[2]}")
+        return ok
 
     def spawn_box(self, box: Box, sdf_path: str) -> bool:
         # Gazebo ENU: x = east, y = north
@@ -524,12 +534,19 @@ def main() -> int:
     ap.add_argument("--scenario", choices=["short", "long", "none"], default="long",
                     help="short: blockage clears while waiting; long: drone re-plans; none: no blockage")
     ap.add_argument("--no-gazebo", action="store_true", help="do not spawn the blockage in Gazebo")
+    ap.add_argument("--no-follow", action="store_true", help="do not make the Gazebo camera follow the drone")
     ap.add_argument("--config", default=planner.DEFAULT_CONFIG)
     ap.add_argument("--log-dir", default=os.path.join(planner.ROOT, "logs"))
     args = ap.parse_args()
 
     cfg = planner.load_config(args.config)
     gz = GazeboWorld(cfg["world_name"], enabled=not args.no_gazebo, log=print)
+    if gz.enabled and not args.no_follow:
+        cam = cfg.get("camera", {})
+        if gz.follow(cam.get("follow_model", "iris_with_ardupilot"), tuple(cam.get("follow_offset", [-15, 0, 8]))):
+            print("Gazebo camera is following the drone")
+        else:
+            print("Could not set Gazebo camera follow (is the Gazebo window open?)")
     drone = MavlinkDrone(args.connect, log=print)
     mission = Mission(cfg, drone, gz, args.scenario, args.log_dir)
     try:

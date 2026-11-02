@@ -42,5 +42,11 @@
     "rtl_alt": 45
   },
 
-  "delivery": { "ground_wait": 5.0 }
+  "delivery": { "ground_wait": 5.0 },
+
+  "camera": {
+    "_comment": "Gazebo GUI camera follows this model; offset = metres [behind(-)/ahead(+), side, up]",
+    "follow_model": "iris_with_ardupilot",
+    "follow_offset": [-15, 0, 8]
+  }
 }
