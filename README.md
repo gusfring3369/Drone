@@ -1,157 +1,192 @@
 # Medical Package Delivery Drone (CS655 Drone Technologies, Q8)
 
-**Problem statement:** simulate a drone delivering a medical package to a remote location while avoiding obstacles and handling a temporary route blockage.
+> **Problem statement (Q8):** *Simulate a drone delivering a medical package to a remote location while avoiding obstacles and handling a temporary route blockage.*
 
-A quadcopter (ArduPilot SITL) takes off from the **City Hospital** and flies an **A\*** route around six buildings to the **Remote Village Clinic**. It lands to deliver the package and then flies back. During the outbound flight, a **temporary blockage** (for example a crane, a fallen tree or a temporary no-fly zone) appears on the route. The drone handles it like this:
+**Team:**
 
-1. It detects the blockage with a simulated forward-looking range sensor, 25 m ahead.
-2. It stops and **hovers** (HOLD).
-3. It **waits** up to 20 s for the route to clear:
-   - **If it clears in time,** the drone resumes the original route.
-   - **If it's still blocked,** the drone re-plans a detour with A\* and continues.
-
-The return leg avoids the blockage too if it is still there. A geofence (circle plus maximum altitude) and an RTL altitude above all buildings keep the flight inside safe boundaries.
-
-| Scenario flag | What happens |
+| Roll No. | Name |
 |---|---|
-| `--scenario long` (default) | The blockage outlasts the 20 s wait, so the drone **re-plans** around it. |
-| `--scenario short` | The blockage clears after 8 s, so the drone **resumes** the original route. |
-| `--scenario none` | No blockage; a plain obstacle-avoiding delivery. |
+| 206126035 | TODO |
+| 206126033 | TODO |
+| 206126034 | Sriram |
 
-![A* route and re-plan](docs/plan_preview.png)
+**Course:** M.Tech (CSE) I Year, July 2026.
 
----
+**Deadlines:** live demo by **07.12.2026**; softcopy by **10.12.2026, 11 am**.
+
+New here, or an AI assistant? Read **[CLAUDE.md](CLAUDE.md)** for the complete project context.
+
+## Assignment deliverables
+| # | Required by the brief | Where | Status |
+|---|---|---|---|
+| 1 | Document: team details, Q no., problem statement, design, tools, environment | [`docs/CS655_Q8_Report.docx`](docs/CS655_Q8_Report.docx) (source: [`docs/report.md`](docs/report.md)) | ✅ Add teammates' names |
+| 2 | Demo video, under 2 minutes | [`media/`](media/), plan in [`docs/DEMO_AND_VIVA.md`](docs/DEMO_AND_VIVA.md) | ⏳ To record |
+| 3 | Execution procedure, all files and code, README | This README, [`docs/SETUP_GUIDE.md`](docs/SETUP_GUIDE.md), [`scripts/`](scripts/) | ✅ |
+| 4 | Contribution of each member | Report §9 | ⏳ Team to fill in |
+| – | Live demo checklist and viva Q&A | [`docs/DEMO_AND_VIVA.md`](docs/DEMO_AND_VIVA.md) | ✅ |
+| – | Assignment brief and course files | [`docs/ASSIGNMENT.md`](docs/ASSIGNMENT.md), [`docs/course_material/`](docs/course_material/) | ✅ |
+
+## What the simulation does
+A quadcopter (ArduPilot SITL in Gazebo) takes off from the **City Hospital** and flies an **A\*** route around six buildings (25–40 m tall; it cruises at 15 m) to the **Remote Village Clinic**. It lands to deliver the package, then flies back.
+
+During the outbound flight, a **temporary blockage** appears on the route: an orange tower standing for a crane, a fallen tree or a temporary no-fly zone. The drone handles it like this:
+1. A simulated forward range sensor **detects** it 25 m ahead.
+2. The drone **holds** position.
+3. It **waits** up to 20 s:
+   - **If the blockage clears in time,** the drone resumes the original route (`--scenario short`).
+   - **If it's still there,** the drone **re-plans** a detour with A\* (`--scenario long`).
+
+The return leg avoids the blockage if it's still present. A geofence (220 m circle and 50 m ceiling) and an RTL altitude of 45 m, above every building, act as failsafes.
+
+![A* route (blue), blockage (red), re-planned detour (green)](docs/plan_preview.png)
+
+| Scenario | What happens | Offline test result |
+|---|---|---|
+| `long` (default) | Blockage outlasts the 20 s wait, so the drone re-plans | 371 m, 20 s wait, 1 re-plan |
+| `short` | Blockage clears after 8 s, so the drone resumes | 357 m, 8 s wait |
+| `none` | No blockage | 356 m |
 
 ## Tools and platform
-| Component | Version / notes |
+| Component | Used |
 |---|---|
-| OS | Ubuntu 22.04 LTS. Native, or a VMware Workstation VM with "Accelerate 3D graphics" turned on |
-| Simulator (3D world) | Gazebo Harmonic (gz-sim 8) |
-| Flight controller | ArduPilot ArduCopter SITL, with the `ardupilot_gazebo` plugin |
-| Ground control station | QGroundControl 5.0.8 (optional, for the map and telemetry) |
-| Middleware | ROS2 Humble + `ros_gz` bridge, installed per the course guide (optional for this project) |
-| Mission code | Python 3: `pymavlink` (MAVLink), `matplotlib` (maps) |
+| OS | Ubuntu 22.04 LTS in a VMware Workstation Pro VM, with 3D acceleration, on a Windows 11 laptop |
+| Simulator | Gazebo Harmonic (gz-sim 8), with `--render-engine ogre` in the VM |
+| Flight controller | ArduPilot ArduCopter SITL + `ardupilot_gazebo` plugin |
+| Ground station | QGroundControl 5.0.8 (optional) |
+| Middleware | ROS2 Humble + `ros_gz` bridge, installed per the course guide |
+| Mission code | Python 3: `pymavlink` (MAVLink), `matplotlib` |
 
 ## Repository layout
 ```
-config/mission.json        <- the whole scenario: hospital, village, buildings, blockage, speeds, fence
-scripts/planner.py         <- occupancy grid + A* + line-of-sight path simplification
-scripts/mission.py         <- MAVLink mission state machine (takeoff, follow path, hold, re-plan, land, return)
-scripts/live_map.py        <- live 2-D map of the mission (reads logs/state.json)
-scripts/generate_world.py  <- builds the Gazebo world and the blockage model from config/mission.json
-scripts/viz.py             <- shared plotting helpers
-worlds/medical_delivery.sdf  (generated)    models/blockage.sdf  (generated)
-tests/test_mission.py      <- offline test of the mission logic with a simulated drone (no SITL needed)
-docs/report.md             <- report draft (team, design, tools, contributions)
-logs/                      <- created at run time: flight_log.csv, events.txt, flight_map.png
+CLAUDE.md, AGENTS.md         full project context for AI assistants / new contributors
+config/mission.json          the scenario: hospital, village, buildings, blockage, speed, fence, camera
+scripts/planner.py           occupancy grid + A* + path simplification
+scripts/mission.py           MAVLink mission state machine (takeoff, follow, hold, re-plan, land, return)
+scripts/live_map.py          live 2-D map of the mission
+scripts/generate_world.py    builds the Gazebo world + blockage model from the config
+scripts/run_all.sh           starts everything (4 terminals) | scripts/stop_all.sh stops everything
+scripts/viz.py               plotting helpers
+tests/test_mission.py        offline test with a simulated drone (no simulator needed)
+worlds/, models/             generated Gazebo files
+tools/build_report.sh        rebuilds the Word report from docs/report.md
+docs/                        report (.md + .docx), setup guide, demo/viva notes, assignment brief, results, course files
+media/                       demo video (or a link to it)
+logs/                        created at run time (git-ignored)
 ```
 
 ---
 
 ## 1. One-time setup
-Follow the course install guide (Steps 1–7) on Ubuntu 22.04: ROS2 Humble, Gazebo Harmonic, ArduPilot SITL, the `ardupilot_gazebo` plugin and QGroundControl. Check that the guide's own test flight (`iris_runway.sdf` + `sim_vehicle.py`) works first.
+Follow **[docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md)**. It's the course install guide plus every fix we needed: VMware VM, apt sources, Gazebo flicker, and the ArduPilot "frame class" bug.
 
 Then get this project and its Python packages. Run each command on its own:
 ```bash
-cd ~ && git clone https://github.com/gusfring3369/Drone.git && cd Drone
+cd ~ && git clone -b claude/wizardly-bohr-mxzqfb https://github.com/gusfring3369/Drone.git
 ```
 ```bash
 sudo apt install python3-matplotlib -y
 ```
 ```bash
-python3 -c "import pymavlink, matplotlib; print('python deps ok')"
+cd ~/Drone && python3 tests/test_mission.py
 ```
-`pymavlink` is installed by ArduPilot's `install-prereqs-ubuntu.sh`. If the last command fails, install both packages with pip:
+The test should print 3× `PASS`. `pymavlink` comes with ArduPilot's prerequisites. If it's missing, install both packages with pip:
 ```bash
 python3 -m pip install --user pymavlink matplotlib
 ```
 
-Optional: run the offline checks. These work on any computer, with no simulator needed.
-```bash
-python3 scripts/planner.py
-```
-```bash
-python3 tests/test_mission.py
-```
-The first prints the route and saves `docs/plan_preview.png`. The second should print `PASS` for the scenarios `none`, `short` and `long`.
+## 2. Run the simulation
 
-## 2. Running the simulation
-Open **5 terminals**, each starting in `~/Drone`, and start them in this order.
+### Easiest: one command
+```bash
+cd ~/Drone && ./scripts/run_all.sh long
+```
+This opens 4 terminals: Gazebo, ArduPilot SITL, the live map and the mission. Other forms:
+- **`./scripts/run_all.sh short`:** the "wait and resume" scenario.
+- **`./scripts/run_all.sh none`:** no blockage.
+- **`./scripts/run_all.sh long --fresh`:** also wipes saved ArduPilot parameters. Use it if you see `Check frame class and type`.
 
-**Terminal 1: Gazebo world.** Hospital, village, buildings and the drone.
+Stop everything with:
+```bash
+cd ~/Drone && ./scripts/stop_all.sh
+```
+
+### Manual: one terminal each, in this order
+**Terminal 1: Gazebo**
 ```bash
 cd ~/Drone && gz sim -v4 -r worlds/medical_delivery.sdf --render-engine ogre
 ```
-Drop `--render-engine ogre` on a native install with a good GPU. If the window is black or flickers in a VM, keep it. To run without the 3D window, use `gz sim -v4 -s -r worlds/medical_delivery.sdf`.
-
-**Terminal 2: ArduPilot SITL** connected to Gazebo. Always start it from your home folder.
+**Terminal 2: ArduPilot SITL.** Wait for `pre-arm good`. Add `-w` once if you ever see `Check frame class and type`.
 ```bash
 cd ~ && sim_vehicle.py -v ArduCopter -f gazebo-iris --model JSON --console --map --add-param-file=$HOME/ardupilot/Tools/autotest/default_params/copter.parm --add-param-file=$HOME/ardupilot/Tools/autotest/default_params/gazebo-iris.parm --out=udp:127.0.0.1:14560
 ```
-Wait until the console shows `EKF3 IMU0 is using GPS`. The extra `--out` sends telemetry to port 14560 for the mission script; QGroundControl keeps using 14550.
-
-The two `--add-param-file` options are needed on current ArduPilot `master`, which looks up its built-in defaults by the `--model` name (`JSON`) and so loads none. Without them, arming fails with `PreArm: Motors: Check frame class and type`. If you ever see that error, add `-w` once to wipe the saved parameters.
-
-**Terminal 3 (optional): QGroundControl.** It connects automatically.
+**Terminal 3: live map**
+```bash
+cd ~/Drone && python3 scripts/live_map.py
+```
+**Terminal 4: mission.** Use `--scenario short` or `--scenario none` for the other scenarios.
+```bash
+cd ~/Drone && python3 scripts/mission.py --scenario long
+```
+**Optional: QGroundControl.** It connects on UDP 14550 by itself.
 ```bash
 ~/Downloads/QGroundControl-x86_64.AppImage
 ```
 
-**Terminal 4: live mission map.**
-```bash
-cd ~/Drone && python3 scripts/live_map.py
-```
-
-**Terminal 5: the mission.**
-```bash
-cd ~/Drone && python3 scripts/mission.py --scenario long
-```
-For the other scenarios, use `--scenario short` (the drone waits, then resumes) or `--scenario none`.
+Why the two `--add-param-file` options: current ArduPilot `master` looks up its built-in default parameters by the `--model` name (`JSON`) and so loads none. `FRAME_CLASS` then stays 0, and arming fails with `PreArm: Motors: Check frame class and type`. The details are in SETUP_GUIDE §7.
 
 ### What you should see
-1. **PREFLIGHT:** the script sets the speed, RTL altitude and geofence parameters, then **TAKEOFF** to 15 m.
-2. **A blockage appears:** an orange 30 m tower spawns on the route in Gazebo and turns red on the live map.
+1. **PREFLIGHT:** the script sets the speed, RTL altitude and geofence. The Gazebo camera starts **following the drone**; use `--no-follow` to turn that off.
+2. **TAKEOFF** to 15 m, and the **orange blockage tower** appears on the route.
 3. **FOLLOW_PATH:** the drone flies the A\* waypoints around the buildings.
-4. **HOLD:** at about 25 m from the blockage it stops and hovers. The live map shows the sensor-range circle.
+4. **HOLD:** at about 25 m from the blockage it stops. The live map shows the sensor circle.
 5. **After the wait:**
-   - **`long`:** after 20 s it switches to **REPLAN**, a green detour appears, and it flies around the blockage.
-   - **`short`:** the blockage disappears after 8 s and the drone resumes its original route.
-6. **LAND** at the village, then **PACKAGE DELIVERED**, then a 5 s pause on the ground.
-7. **TAKEOFF**, the return route home, **LAND**, and **COMPLETE**.
+   - **`long`:** after 20 s, **REPLAN**. A green detour appears and the drone flies around the blockage.
+   - **`short`:** the blockage disappears after 8 s and the drone resumes.
+6. **LAND** at the village, **PACKAGE DELIVERED**, then a 5 s pause.
+7. **TAKEOFF**, the return route, **LAND** at the hospital, and **COMPLETE**.
 
-After each run, `logs/` contains:
-- `flight_map.png`: the planned route, the blockage and the actual track
+**Outputs** go to `logs/`:
+- `flight_map.png`: the route, the blockage and the actual track
 - `flight_log.csv`: position and state at 4 Hz
-- `events.txt`: the timeline of the mission
+- `events.txt`: the mission timeline
 
-### Running again
-The drone ends the mission landed at the hospital, so you can run `mission.py` again straight away. If anything went wrong mid-flight, stop terminals 1 and 2 with Ctrl+C and restart them.
+To keep the outputs of a run, copy them into `docs/results/sitl_gazebo/`; see [`docs/results/README.md`](docs/results/README.md).
+
+**Running again:** the drone ends landed at the hospital, so you can run `mission.py` again straight away. After any crash or confusion, do `./scripts/stop_all.sh` and start over. Always restart Gazebo and SITL together, Gazebo first.
 
 ## 3. Without Gazebo (lighter computers)
-The mission also works with ArduPilot's built-in simulator. The blockage is then only shown on the live map.
+The blockage is then only shown on the live map.
 ```bash
 cd ~ && sim_vehicle.py -v ArduCopter --console --map --out=udp:127.0.0.1:14560
 ```
 ```bash
 cd ~/Drone && python3 scripts/mission.py --no-gazebo --scenario long
 ```
-On Windows with Mission Planner's **Simulation** tab (Multirotor), connect to the simulator's second port:
+On Windows with Mission Planner's **Simulation** tab (Multirotor):
 ```bash
 python scripts/mission.py --no-gazebo --connect tcp:127.0.0.1:5762
 ```
 
 ## 4. Changing the scenario
-Edit `config/mission.json`: you can move the buildings, the village, the blockage position (`route_fraction`), the sensor range, the wait timeout, the speed or the altitude. Then regenerate the Gazebo world:
+Edit `config/mission.json`: you can move the buildings, the village, the blockage position (`route_fraction`), the sensor range, the wait timeout, the speed, the altitude or the camera offset. Then regenerate the world and the preview:
 ```bash
-python3 scripts/generate_world.py
+python3 scripts/generate_world.py && python3 scripts/planner.py
 ```
 
-## 5. Troubleshooting
+## 5. Rebuilding the report
+After editing `docs/report.md` (for example, to add names or contributions), rebuild the Word file. It needs `sudo apt install pandoc`.
+```bash
+./tools/build_report.sh
+```
+
+## 6. Troubleshooting
 | Problem | Fix |
 |---|---|
-| `PreArm: Motors: Check frame class and type` | Start SITL with the two `--add-param-file` options shown in Terminal 2, plus `-w` once. |
-| `No heartbeat from the autopilot` | Check that SITL was started with `--out=udp:127.0.0.1:14560`, and that it's still running. |
-| `Unable to find or download file` / `iris_with_ardupilot` not found | `GZ_SIM_RESOURCE_PATH` must include `~/ardupilot_gazebo/models`. See install guide Step 5, and open a new terminal after editing `.bashrc`. |
-| Gazebo window black or flickering (VM) | Add `--render-engine ogre`, or run headless with `-s`. |
-| Drone doesn't arm (`PreArm: ...`) | Wait about 30 s after starting SITL until GPS and EKF are ready. The script keeps retrying. |
-| Blockage doesn't appear in Gazebo | The world must be the one from `worlds/medical_delivery.sdf`, which includes the UserCommands plugin. The mission continues with a virtual blockage regardless. |
+| `PreArm: Motors: Check frame class and type` | Use the SITL command above with both `--add-param-file` options, plus `-w` once (or `run_all.sh ... --fresh`). |
+| `No heartbeat from the autopilot` | SITL must run with `--out=udp:127.0.0.1:14560`. |
+| `iris_with_ardupilot` / `iris_runway.sdf` not found | `GZ_SIM_RESOURCE_PATH` must include `~/ardupilot_gazebo/models` (SETUP_GUIDE §6). Open a new terminal. |
+| Gazebo window black or flickering | Keep `--render-engine ogre`, or run headless with `gz sim -s ...`. |
+| Drone doesn't arm (`PreArm: ...`) | Wait 30–60 s for GPS and EKF. The script keeps retrying and prints the reason. |
+| Blockage doesn't appear in Gazebo | Use `worlds/medical_delivery.sdf`, which has the UserCommands plugin. The mission still works with a virtual blockage. |
+| Camera doesn't follow | Gazebo must be open before `mission.py` starts. Otherwise, right-click the drone → Follow. |
+| More setup problems | [`docs/SETUP_GUIDE.md`](docs/SETUP_GUIDE.md), quick troubleshooting index at the end |

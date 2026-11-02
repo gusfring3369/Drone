@@ -1,0 +1,7 @@
+   0.0s  Temporary blockage appeared on the route at (78 N, 34 E)
+   8.8s  BLOCKAGE DETECTED 24.7 m ahead at (78 N, 34 E) - holding position
+  28.9s  Still blocked after 20 s - re-planning with A*
+  28.9s  New route: 4 legs, 138 m
+  61.3s  PACKAGE DELIVERED to Remote Village Clinic
+  68.9s  Blockage cleared (removed from the world)
+ 107.2s  Mission complete: 371 m flown, 20 s waiting at blockage, 1 re-plan(s)

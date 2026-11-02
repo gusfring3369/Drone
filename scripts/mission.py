@@ -55,7 +55,7 @@ class MavlinkDrone:
         self.log = log
         log(f"Connecting to autopilot on {url} ...")
         self.m = mavutil.mavlink_connection(url, source_system=245, source_component=190)
-        self._wait_autopilot_heartbeat(timeout=60)
+        self._wait_autopilot_heartbeat(timeout=240)
         self.n = self.e = self.d = None
         self.armed = False
         self.custom_mode = None
